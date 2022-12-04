@@ -12,20 +12,69 @@ import java.io.Reader;
 
 public class App {
     public static void main(String[] args) {
+        String path = "/home/ilayraz/projects/semgus/semgus-unrealizability-chc/max2-exp.json";
+
+        com.microsoft.z3.Global.ToggleWarningMessages(true);
         SemgusProblem problem;
-        try (Reader reader = new FileReader(args[0])) {
+        try (Reader reader = new FileReader(path)) {
             problem = ProblemGenerator.parse(reader);
         } catch (Exception ex) {
             ex.printStackTrace();
             return;
         }
+        //System.out.println(problem.dump());
 
-        System.out.println(problem.dump());
-        chcTest();
+        smallTest();
+    }
+
+    static void smallTest() {
+        Context ctx = new Context();
+        IntSort Z = ctx.getIntSort();
+        BoolSort B = ctx.getBoolSort();
+
+        var S = ctx.mkFuncDecl("S", Z, B);
+        var x = ctx.mkIntConst("x");
+        var xp = ctx.mkIntConst("xp");
+        var o = ctx.mkIntConst("o");
+        var i = ctx.mkIntConst("i");
+
+        var two = ctx.mkInt(2);
+        var S_x = ctx.mkApp(S, x);
+
+        var c1 = ctx.mkImplies(ctx.mkEq(x, ctx.mkInt(0)), S_x);
+        var c2 = ctx.mkImplies(ctx.mkAnd(
+                ctx.mkEq(x, ctx.mkAdd(xp, ctx.mkInt(3))),
+                S.apply(xp)
+        ), S_x);
+        var c3 = S.apply(o);
+        var c4 = ctx.mkEq(o, ctx.mkAdd(two, ctx.mkMul(two, i)));
+
+        var rules = ctx.mkAnd(c1, c2, c3, c4);
+        var boundedRules = ctx.mkForall(new IntExpr[]{x, xp, i}, rules, 1, null, null, null, null);
+        System.out.println(boundedRules);
+
+        var SDefinition = ctx.mkForall(new IntExpr[]{x, xp}, ctx.mkImplies(
+                ctx.mkOr(
+                        ctx.mkEq(x, ctx.mkInt(0)),
+                        ctx.mkAnd(
+                                S.apply(xp),
+                                ctx.mkEq(x, ctx.mkAdd(ctx.mkInt(3), x))
+                        )
+                ),
+                S.apply(x)
+                ), 1, null, null, null, null);
+
+        var solver = ctx.mkSolver("HORN");
+
+        //solver.assertAndTrack(rules, ctx.mkBoolConst("C1"));
+        //var result = solver.check(ctx.mkNot(SDefinition));
+        var result = solver.check(boundedRules);
+        System.out.println(result);
+        if (result == Status.SATISFIABLE)
+            System.out.println(solver.getModel());
     }
 
     static void chcTest() {
-        com.microsoft.z3.Global.ToggleWarningMessages(true);
         Context ctx = new Context();
         IntSort Z = ctx.getIntSort();
         BoolSort B = ctx.getBoolSort();
@@ -33,8 +82,8 @@ public class App {
         FuncDecl<BoolSort> f = ctx.mkFuncDecl("f", new Sort[]{Z, Z}, B);
 
         Expr<IntSort> x = ctx.mkConst("x", Z);
-        Expr<IntSort> y = ctx.mkConst("x", Z);
-        Expr<IntSort> z = ctx.mkConst("x", Z);
+        Expr<IntSort> y = ctx.mkConst("y", Z);
+        Expr<IntSort> z = ctx.mkConst("z", Z);
 
         var solver = ctx.mkSolver("HORN");
 
