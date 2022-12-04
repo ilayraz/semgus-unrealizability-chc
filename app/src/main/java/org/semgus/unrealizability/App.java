@@ -3,6 +3,7 @@
  */
 package org.semgus.unrealizability;
 
+import com.microsoft.z3.*;
 import org.semgus.java.problem.ProblemGenerator;
 import org.semgus.java.problem.SemgusProblem;
 
@@ -12,7 +13,7 @@ import java.io.Reader;
 public class App {
     public static void main(String[] args) {
         SemgusProblem problem;
-        try (Reader reader = new FileReader(args[1])) {
+        try (Reader reader = new FileReader(args[0])) {
             problem = ProblemGenerator.parse(reader);
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -20,5 +21,35 @@ public class App {
         }
 
         System.out.println(problem.dump());
+        chcTest();
+    }
+
+    static void chcTest() {
+        com.microsoft.z3.Global.ToggleWarningMessages(true);
+        Context ctx = new Context();
+        IntSort Z = ctx.getIntSort();
+        BoolSort B = ctx.getBoolSort();
+
+        FuncDecl<BoolSort> f = ctx.mkFuncDecl("f", new Sort[]{Z, Z}, B);
+
+        Expr<IntSort> x = ctx.mkConst("x", Z);
+        Expr<IntSort> y = ctx.mkConst("x", Z);
+        Expr<IntSort> z = ctx.mkConst("x", Z);
+
+        var solver = ctx.mkSolver("HORN");
+
+        BoolExpr C1 = ctx.mkForall(
+                new Expr[] {x},
+                ctx.mkImplies(
+                        ctx.mkGt(x, ctx.mkInt(100)),
+                        f.apply(x, ctx.mkSub(x, ctx.mkInt(10)))
+                ),
+                1, null, null, ctx.mkSymbol("C1"), null);
+
+        solver.add(C1);
+        var result = solver.check();
+        System.out.println(result);
+        var model = solver.getModel();
+        System.out.println(model);
     }
 }
