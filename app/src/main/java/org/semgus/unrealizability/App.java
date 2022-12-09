@@ -4,15 +4,18 @@
 package org.semgus.unrealizability;
 
 import com.microsoft.z3.*;
+import org.semgus.java.object.SmtTerm;
+import org.semgus.java.object.TypedVar;
 import org.semgus.java.problem.ProblemGenerator;
 import org.semgus.java.problem.SemgusProblem;
 
 import java.io.FileReader;
 import java.io.Reader;
+import java.util.*;
 
 public class App {
     public static void main(String[] args) {
-        String path = "/home/ilayraz/projects/semgus/semgus-unrealizability-chc/max2-exp.json";
+        String path = "/home/ilayraz/projects/semgus/semgus-unrealizability-chc/plus-times.json";
 
         com.microsoft.z3.Global.ToggleWarningMessages(true);
         SemgusProblem problem;
@@ -25,6 +28,49 @@ public class App {
         //System.out.println(problem.dump());
 
         smallTest();
+
+        System.out.println(problem.smtContext());
+    }
+
+
+    static void parseProblem(SemgusProblem problem) {
+        Context ctx = new Context();
+        IntSort Z = ctx.getIntSort();
+        BoolSort B = ctx.getBoolSort();
+
+        Map<String, Sort> knownTypeMap = new HashMap<>();
+        knownTypeMap.put("Int", Z);
+        knownTypeMap.put("Bool", B);
+
+        List<FuncDecl<BoolSort>> indicators = new ArrayList<>();
+        List<BoolExpr> constraints = new ArrayList<>();
+
+        for (var entry : problem.smtContext().functions().entrySet()) {
+            String name = entry.getKey();
+            var function = entry.getValue();
+
+            // Used LinkedHashMap to maintain insertion order
+            LinkedHashMap<String, Expr> arguments = new LinkedHashMap<>(function.arguments().size());
+
+            // Parse types we know
+            for (TypedVar var : function.arguments()) {
+                String typeName = var.type().name();
+                if (knownTypeMap.containsKey(typeName)) {
+                    Sort type = knownTypeMap.get(typeName);
+                    arguments.put(var.name(), ctx.mkConst(var.name(), type));
+                }
+            }
+
+            Sort[] argumentTypes = arguments.values().stream().map(Expr::getSort).toArray(Sort[]::new);
+            var indicator = ctx.mkFuncDecl(name, argumentTypes, B);
+            indicators.add(indicator);
+
+            // Parse each production
+            List<BoolExpr> productions = new ArrayList<>();
+            for (SmtTerm.Match.Case term : ((SmtTerm.Match) function.body()).cases()) {
+                SmtTerm.Application result = (SmtTerm.Application) term.result();
+            }
+        }
     }
 
     static void smallTest() {
@@ -72,6 +118,8 @@ public class App {
         System.out.println(result);
         if (result == Status.SATISFIABLE)
             System.out.println(solver.getModel());
+        else if (result == Status.UNSATISFIABLE)
+            System.out.println(Arrays.toString(solver.getUnsatCore()));
     }
 
     static void chcTest() {
