@@ -1,4 +1,4 @@
-package org.semgus.java.event;
+package org.semgus.java_test.event;
 
 /**
  * Parent interface for all SemGuS parser events.

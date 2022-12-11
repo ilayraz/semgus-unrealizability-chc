@@ -1,4 +1,4 @@
-package org.semgus.java.object;
+package org.semgus.java_test.object;
 
 import java.util.List;
 import java.util.Map;
@@ -52,7 +52,7 @@ public record SmtContext(Map<String, Datatype> datatypes, Map<String, SmtContext
          * @param name          The name of the constructor.
          * @param argumentTypes The types of the constructor's arguments.
          */
-        public record Constructor(String name, List<Identifier> argumentTypes) {
+        public record Constructor(String name, List<org.semgus.java_test.object.Identifier> argumentTypes) {
 
             @Override
             public String toString() {
@@ -78,7 +78,7 @@ public record SmtContext(Map<String, Datatype> datatypes, Map<String, SmtContext
      * @param arguments The arguments to the function.
      * @param body      The body of the function.
      */
-    public record Function(String name, List<TypedVar> arguments, SmtTerm body) {
+    public record Function(String name, List<org.semgus.java_test.object.TypedVar> arguments, SmtTerm body) {
 
         @Override
         public String toString() {

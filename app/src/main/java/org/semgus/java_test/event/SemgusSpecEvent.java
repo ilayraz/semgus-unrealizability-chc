@@ -1,9 +1,9 @@
-package org.semgus.java.event;
+package org.semgus.java_test.event;
 
-import org.semgus.java.object.AnnotatedVar;
-import org.semgus.java.object.RelationApp;
-import org.semgus.java.object.SmtTerm;
-import org.semgus.java.object.TypedVar;
+import org.semgus.java_test.object.AnnotatedVar;
+import org.semgus.java_test.object.RelationApp;
+import org.semgus.java_test.object.SmtTerm;
+import org.semgus.java_test.object.TypedVar;
 
 import java.util.List;
 import java.util.Map;

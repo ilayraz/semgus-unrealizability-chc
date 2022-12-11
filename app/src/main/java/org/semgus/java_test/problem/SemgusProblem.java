@@ -1,9 +1,9 @@
-package org.semgus.java.problem;
+package org.semgus.java_test.problem;
 
-import org.semgus.java.object.AttributeValue;
-import org.semgus.java.object.RelationApp;
-import org.semgus.java.object.SmtContext;
-import org.semgus.java.object.SmtTerm;
+import org.semgus.java_test.object.AttributeValue;
+import org.semgus.java_test.object.RelationApp;
+import org.semgus.java_test.object.SmtContext;
+import org.semgus.java_test.object.SmtTerm;
 
 import java.util.List;
 import java.util.Map;
@@ -19,7 +19,7 @@ import java.util.Map;
  * @param smtContext        The SMT context of the synthesis problem.
  */
 public record SemgusProblem(String targetName, SemgusNonTerminal targetNonTerminal,
-                            Map<String, SemgusNonTerminal> nonTerminals, List<SmtTerm> constraints,
+                            Map<String, SemgusNonTerminal> nonTerminals, List<org.semgus.java_test.object.SmtTerm> constraints,
                             Map<String, AttributeValue> metadata,
                             SmtContext smtContext) {
 

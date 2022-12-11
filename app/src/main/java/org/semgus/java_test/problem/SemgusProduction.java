@@ -1,4 +1,4 @@
-package org.semgus.java.problem;
+package org.semgus.java_test.problem;
 
 import java.util.List;
 

@@ -1,9 +1,9 @@
-package org.semgus.java.object;
+package org.semgus.java_test.object;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
-import org.semgus.java.util.DeserializationException;
-import org.semgus.java.util.JsonUtils;
+import org.semgus.java_test.util.DeserializationException;
+import org.semgus.java_test.util.JsonUtils;
 
 import java.util.Arrays;
 import java.util.List;
@@ -22,19 +22,19 @@ public record Identifier(String name, Index... indices) {
      *
      * @param idDtoRaw A JSON value representing an optionally-indexed identifier.
      * @return The deserialized identifier.
-     * @throws DeserializationException If {@code idDtoRaw} is not a valid representation of an identifier.
+     * @throws org.semgus.java_test.util.DeserializationException If {@code idDtoRaw} is not a valid representation of an identifier.
      */
-    public static Identifier deserialize(Object idDtoRaw) throws DeserializationException {
+    public static Identifier deserialize(Object idDtoRaw) throws org.semgus.java_test.util.DeserializationException {
         if (idDtoRaw instanceof String name) { // just a string; it's non-indexed
             return new Identifier(name);
         } else if (idDtoRaw instanceof JSONArray idDto) { // it's an array; first elem is name, rest are indices
             // parse identifier name
             if (idDto.isEmpty()) {
-                throw new DeserializationException("Identifier must include name!");
+                throw new org.semgus.java_test.util.DeserializationException("Identifier must include name!");
             }
             Object nameRaw = idDto.get(0);
             if (!(nameRaw instanceof String)) {
-                throw new DeserializationException("Identifier name must be a string!", 0);
+                throw new org.semgus.java_test.util.DeserializationException("Identifier name must be a string!", 0);
             }
 
             // parse indices
@@ -42,14 +42,14 @@ public record Identifier(String name, Index... indices) {
             for (int i = 0; i < indices.length; i++) {
                 try {
                     indices[i] = Index.deserialize(idDto.get(i + 1));
-                } catch (DeserializationException e) {
+                } catch (org.semgus.java_test.util.DeserializationException e) {
                     throw e.prepend(i + 1);
                 }
             }
 
             return new Identifier((String)nameRaw, indices);
         }
-        throw new DeserializationException("Identifier must either be a string or an array!");
+        throw new org.semgus.java_test.util.DeserializationException("Identifier must either be a string or an array!");
     }
 
     /**
@@ -58,13 +58,13 @@ public record Identifier(String name, Index... indices) {
      * @param parentDto The parent JSON object.
      * @param key       The key whose value should be deserialized.
      * @return The deserialized identifier.
-     * @throws DeserializationException If the value at {@code key} is not a valid representation of an identifier.
+     * @throws org.semgus.java_test.util.DeserializationException If the value at {@code key} is not a valid representation of an identifier.
      */
-    public static Identifier deserializeAt(JSONObject parentDto, String key) throws DeserializationException {
+    public static Identifier deserializeAt(JSONObject parentDto, String key) throws org.semgus.java_test.util.DeserializationException {
         Object identifierDto = JsonUtils.get(parentDto, key);
         try {
             return deserialize(identifierDto);
-        } catch (DeserializationException e) {
+        } catch (org.semgus.java_test.util.DeserializationException e) {
             throw e.prepend(key);
         }
     }
@@ -74,14 +74,14 @@ public record Identifier(String name, Index... indices) {
      *
      * @param idsDto The JSON array of identifiers.
      * @return The list of the deserialized identifiers.
-     * @throws DeserializationException If {@code idsDto} is not an array of valid representations of identifiers.
+     * @throws org.semgus.java_test.util.DeserializationException If {@code idsDto} is not an array of valid representations of identifiers.
      */
-    public static List<Identifier> deserializeList(JSONArray idsDto) throws DeserializationException {
+    public static List<Identifier> deserializeList(JSONArray idsDto) throws org.semgus.java_test.util.DeserializationException {
         Identifier[] ids = new Identifier[idsDto.size()];
         for (int i = 0; i < ids.length; i++) {
             try {
                 ids[i] = deserialize(idsDto.get(i));
-            } catch (DeserializationException e) {
+            } catch (org.semgus.java_test.util.DeserializationException e) {
                 throw e.prepend(i);
             }
         }
@@ -110,9 +110,9 @@ public record Identifier(String name, Index... indices) {
          *
          * @param indexDtoRaw A JSON value representing an index value.
          * @return The deserialized index value.
-         * @throws DeserializationException If {@code indexDtoRaw} is not a valid representation of an index value.
+         * @throws org.semgus.java_test.util.DeserializationException If {@code indexDtoRaw} is not a valid representation of an index value.
          */
-        static Index deserialize(Object indexDtoRaw) throws DeserializationException {
+        static Index deserialize(Object indexDtoRaw) throws org.semgus.java_test.util.DeserializationException {
             if (indexDtoRaw instanceof String index) {
                 return new NString(index);
             } else if (indexDtoRaw instanceof Long index) {

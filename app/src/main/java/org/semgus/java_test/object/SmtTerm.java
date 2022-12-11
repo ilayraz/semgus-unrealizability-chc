@@ -1,9 +1,10 @@
-package org.semgus.java.object;
+package org.semgus.java_test.object;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
-import org.semgus.java.util.DeserializationException;
-import org.semgus.java.util.JsonUtils;
+import org.semgus.java_test.event.SmtSpecEvent;
+import org.semgus.java_test.util.DeserializationException;
+import org.semgus.java_test.util.JsonUtils;
 
 import java.util.Arrays;
 import java.util.BitSet;
@@ -20,15 +21,15 @@ public sealed interface SmtTerm {
      *
      * @param termDtoRaw The JSON representation of the term.
      * @return The deserialized term.
-     * @throws DeserializationException If {@code termDtoRaw} is not a valid representation of an SMT term.
+     * @throws org.semgus.java_test.util.DeserializationException If {@code termDtoRaw} is not a valid representation of an SMT term.
      */
-    static SmtTerm deserialize(Object termDtoRaw) throws DeserializationException {
+    static SmtTerm deserialize(Object termDtoRaw) throws org.semgus.java_test.util.DeserializationException {
         if (termDtoRaw instanceof Number value) { // it's a numeric constant
             return new CNumber(value.longValue());
         } else if (termDtoRaw instanceof String value) { // it's a string constant
             return new CString(value);
         } else if (termDtoRaw instanceof JSONObject termDto) { // it's something more complex
-            String termType = JsonUtils.getString(termDto, "$termType");
+            String termType = org.semgus.java_test.util.JsonUtils.getString(termDto, "$termType");
             return switch (termType) {
                 case "application" -> deserializeApplication(termDto); // a function application
                 case "exists" -> deserializeQuantifier(termDto, Quantifier.Type.EXISTS); // an existential quantifier
@@ -37,11 +38,11 @@ public sealed interface SmtTerm {
                 case "match" -> deserializeMatch(termDto); // a pattern matching expression
                 case "variable" -> deserializeVariable(termDto); // a variable
                 case "bitvector" -> deserializeBitVector(termDto); // a bit vector
-                default -> throw new DeserializationException(
+                default -> throw new org.semgus.java_test.util.DeserializationException(
                         String.format("Unknown term type \"%s\"", termType), "$termType");
             };
         }
-        throw new DeserializationException(String.format("Could not deserialize SMT term \"%s\"", termDtoRaw));
+        throw new org.semgus.java_test.util.DeserializationException(String.format("Could not deserialize SMT term \"%s\"", termDtoRaw));
     }
 
     /**
@@ -50,13 +51,13 @@ public sealed interface SmtTerm {
      * @param parentDto The parent JSON object.
      * @param key       The key whose value should be deserialized.
      * @return The deserialized SMT term.
-     * @throws DeserializationException If the value at {@code key} is not a valid representation of an SMT term.
+     * @throws org.semgus.java_test.util.DeserializationException If the value at {@code key} is not a valid representation of an SMT term.
      */
-    static SmtTerm deserializeAt(JSONObject parentDto, String key) throws DeserializationException {
-        Object termDto = JsonUtils.get(parentDto, key);
+    static SmtTerm deserializeAt(JSONObject parentDto, String key) throws org.semgus.java_test.util.DeserializationException {
+        Object termDto = org.semgus.java_test.util.JsonUtils.get(parentDto, key);
         try {
             return deserialize(termDto);
-        } catch (DeserializationException e) {
+        } catch (org.semgus.java_test.util.DeserializationException e) {
             throw e.prepend(key);
         }
     }
@@ -66,28 +67,28 @@ public sealed interface SmtTerm {
      *
      * @param termDto The JSON representation of the function application.
      * @return The deserialized function application.
-     * @throws DeserializationException If {@code termDto} is not a valid representation of a function application.
+     * @throws org.semgus.java_test.util.DeserializationException If {@code termDto} is not a valid representation of a function application.
      */
-    private static SmtTerm deserializeApplication(JSONObject termDto) throws DeserializationException {
+    private static SmtTerm deserializeApplication(JSONObject termDto) throws org.semgus.java_test.util.DeserializationException {
         // deserialize function and return type identifiers
-        Identifier id = Identifier.deserializeAt(termDto, "name");
-        Identifier returnType = Identifier.deserializeAt(termDto, "returnSort");
+        org.semgus.java_test.object.Identifier id = org.semgus.java_test.object.Identifier.deserializeAt(termDto, "name");
+        org.semgus.java_test.object.Identifier returnType = org.semgus.java_test.object.Identifier.deserializeAt(termDto, "returnSort");
 
         // zip together argument terms and argument types
-        JSONArray argTypes = JsonUtils.getArray(termDto, "argumentSorts");
-        JSONArray args = JsonUtils.getArray(termDto, "arguments");
+        JSONArray argTypes = org.semgus.java_test.util.JsonUtils.getArray(termDto, "argumentSorts");
+        JSONArray args = org.semgus.java_test.util.JsonUtils.getArray(termDto, "arguments");
         if (argTypes.size() != args.size()) {
-            throw new DeserializationException(String.format(
+            throw new org.semgus.java_test.util.DeserializationException(String.format(
                     "Argument sorts and arguments of SMT function application have different lengths %d != %d",
                     argTypes.size(), args.size()));
         }
         Application.TypedTerm[] argTerms = new Application.TypedTerm[argTypes.size()];
         for (int i = 0; i < argTerms.length; i++) {
             // deserialize type
-            Identifier type;
+            org.semgus.java_test.object.Identifier type;
             try {
-                type = Identifier.deserialize(argTypes.get(i));
-            } catch (DeserializationException e) {
+                type = org.semgus.java_test.object.Identifier.deserialize(argTypes.get(i));
+            } catch (org.semgus.java_test.util.DeserializationException e) {
                 throw e.prepend("argumentSorts." + i);
             }
 
@@ -95,7 +96,7 @@ public sealed interface SmtTerm {
             SmtTerm term;
             try {
                 term = deserialize(args.get(i));
-            } catch (DeserializationException e) {
+            } catch (org.semgus.java_test.util.DeserializationException e) {
                 throw e.prepend("arguments." + i);
             }
 
@@ -111,19 +112,19 @@ public sealed interface SmtTerm {
      * @param termDto The JSON representation of the quantified subterm.
      * @param qType   The type of quantifier.
      * @return The deserialized subterm.
-     * @throws DeserializationException If {@code termDto} is not a valid representation of a quantifier.
+     * @throws org.semgus.java_test.util.DeserializationException If {@code termDto} is not a valid representation of a quantifier.
      */
     private static SmtTerm deserializeQuantifier(JSONObject termDto, Quantifier.Type qType)
-            throws DeserializationException {
+            throws org.semgus.java_test.util.DeserializationException {
         // collect variables bound by the quantifier
-        List<JSONObject> bindingsDto = JsonUtils.getObjects(termDto, "bindings");
-        TypedVar[] bindings = new TypedVar[bindingsDto.size()];
+        List<JSONObject> bindingsDto = org.semgus.java_test.util.JsonUtils.getObjects(termDto, "bindings");
+        org.semgus.java_test.object.TypedVar[] bindings = new org.semgus.java_test.object.TypedVar[bindingsDto.size()];
         for (int i = 0; i < bindings.length; i++) {
             JSONObject bindingDto = bindingsDto.get(i);
             try {
-                bindings[i] = new TypedVar(JsonUtils.getString(bindingDto, "name"),
-                        Identifier.deserializeAt(bindingDto, "sort"));
-            } catch (DeserializationException e) {
+                bindings[i] = new org.semgus.java_test.object.TypedVar(org.semgus.java_test.util.JsonUtils.getString(bindingDto, "name"),
+                        org.semgus.java_test.object.Identifier.deserializeAt(bindingDto, "sort"));
+            } catch (org.semgus.java_test.util.DeserializationException e) {
                 throw e.prepend("bindings." + i);
             }
         }
@@ -139,10 +140,10 @@ public sealed interface SmtTerm {
      *
      * @param termDto The JSON representation of the lambda abstraction.
      * @return The deserialized lambda abstraction.
-     * @throws DeserializationException If {@code termDto} is not a valid representation of lambda abstraction.
+     * @throws org.semgus.java_test.util.DeserializationException If {@code termDto} is not a valid representation of lambda abstraction.
      */
-    private static SmtTerm deserializeLambda(JSONObject termDto) throws DeserializationException {
-        return new Lambda(JsonUtils.getStrings(termDto, "arguments"), deserializeAt(termDto, "body"));
+    private static SmtTerm deserializeLambda(JSONObject termDto) throws org.semgus.java_test.util.DeserializationException {
+        return new Lambda(org.semgus.java_test.util.JsonUtils.getStrings(termDto, "arguments"), deserializeAt(termDto, "body"));
     }
 
     /**
@@ -150,21 +151,21 @@ public sealed interface SmtTerm {
      *
      * @param termDto The JSON representation of the pattern-matching expression.
      * @return The deserialized pattern-matching expression.
-     * @throws DeserializationException If {@code termDto} is not a valid representation of a pattern match.
+     * @throws org.semgus.java_test.util.DeserializationException If {@code termDto} is not a valid representation of a pattern match.
      */
-    private static SmtTerm deserializeMatch(JSONObject termDto) throws DeserializationException {
+    private static SmtTerm deserializeMatch(JSONObject termDto) throws org.semgus.java_test.util.DeserializationException {
         SmtTerm matchTerm = deserializeAt(termDto, "term");
-        List<JSONObject> casesDto = JsonUtils.getObjects(termDto, "binders");
+        List<JSONObject> casesDto = org.semgus.java_test.util.JsonUtils.getObjects(termDto, "binders");
 
         Match.Case[] cases = new Match.Case[casesDto.size()];
         for (int i = 0; i < cases.length; i++) {
             JSONObject caseDto = casesDto.get(i);
             try {
                 cases[i] = new Match.Case(
-                        JsonUtils.getString(caseDto, "operator"),
-                        JsonUtils.getStrings(caseDto, "arguments"),
+                        org.semgus.java_test.util.JsonUtils.getString(caseDto, "operator"),
+                        org.semgus.java_test.util.JsonUtils.getStrings(caseDto, "arguments"),
                         deserializeAt(caseDto, "child"));
-            } catch (DeserializationException e) {
+            } catch (org.semgus.java_test.util.DeserializationException e) {
                 throw e.prepend("binders." + i);
             }
         }
@@ -177,10 +178,10 @@ public sealed interface SmtTerm {
      *
      * @param termDto The JSON representation of the variable.
      * @return The deserialized variable.
-     * @throws DeserializationException If {@code termDto} is not a valid representation of a variable.
+     * @throws org.semgus.java_test.util.DeserializationException If {@code termDto} is not a valid representation of a variable.
      */
-    private static SmtTerm deserializeVariable(JSONObject termDto) throws DeserializationException {
-        return new Variable(JsonUtils.getString(termDto, "name"), Identifier.deserializeAt(termDto, "sort"));
+    private static SmtTerm deserializeVariable(JSONObject termDto) throws org.semgus.java_test.util.DeserializationException {
+        return new Variable(org.semgus.java_test.util.JsonUtils.getString(termDto, "name"), org.semgus.java_test.object.Identifier.deserializeAt(termDto, "sort"));
     }
 
     /**
@@ -188,19 +189,19 @@ public sealed interface SmtTerm {
      *
      * @param termDto The JSON representation of the bit vector constant.
      * @return The deserialized bit vector constant.
-     * @throws DeserializationException If {@code termDto} is not a valid representation of a bit vector constant.
+     * @throws org.semgus.java_test.util.DeserializationException If {@code termDto} is not a valid representation of a bit vector constant.
      */
-    private static SmtTerm deserializeBitVector(JSONObject termDto) throws DeserializationException {
+    private static SmtTerm deserializeBitVector(JSONObject termDto) throws org.semgus.java_test.util.DeserializationException {
         // deserialize size
-        int size = JsonUtils.getInt(termDto, "size");
+        int size = org.semgus.java_test.util.JsonUtils.getInt(termDto, "size");
         if (size < 0) {
-            throw new DeserializationException("Bit vector size must be non-negative!", "size");
+            throw new org.semgus.java_test.util.DeserializationException("Bit vector size must be non-negative!", "size");
         }
 
         // deserialize the bit field string
         String bitVecStr = JsonUtils.getString(termDto, "value");
         if (!bitVecStr.startsWith("0x")) {
-            throw new DeserializationException("Bit vector value must start with \"0x\"!", "value");
+            throw new org.semgus.java_test.util.DeserializationException("Bit vector value must start with \"0x\"!", "value");
         }
         int bitVecStrLen = bitVecStr.length();
         int unpaddedByteCount = bitVecStrLen / 2 - 1; // minus one to account for the "0x"
@@ -218,12 +219,12 @@ public sealed interface SmtTerm {
                 bitField[i] = (byte)(readHexChar(bitVecStr.charAt(bitVecStrLen - i * 2 - 1))
                         | (readHexChar(bitVecStr.charAt(bitVecStrLen - i * 2 - 2)) << 4));
             }
-        } catch (DeserializationException e) {
+        } catch (org.semgus.java_test.util.DeserializationException e) {
             throw e.prepend("value");
         }
         BitSet bitVecValue = BitSet.valueOf(bitField);
         if (bitVecValue.nextSetBit(size) != -1) { // ensure there are no set bits beyond the vector size
-            throw new DeserializationException("Bit vector value is wider than bit vector size!");
+            throw new org.semgus.java_test.util.DeserializationException("Bit vector value is wider than bit vector size!");
         }
 
         return new CBitVector(size, bitVecValue);
@@ -234,9 +235,9 @@ public sealed interface SmtTerm {
      *
      * @param hexChar The hexadecimal character.
      * @return The numeric value of {@code hexChar},
-     * @throws DeserializationException If {@code hexChar} is not a valid hexadecimal character.
+     * @throws org.semgus.java_test.util.DeserializationException If {@code hexChar} is not a valid hexadecimal character.
      */
-    private static int readHexChar(char hexChar) throws DeserializationException {
+    private static int readHexChar(char hexChar) throws org.semgus.java_test.util.DeserializationException {
         return switch (hexChar) {
             case '0' -> 0x0;
             case '1' -> 0x1;
@@ -265,7 +266,7 @@ public sealed interface SmtTerm {
      * @param returnType The function's return type.
      * @param arguments  The arguments to the function.
      */
-    record Application(Identifier name, Identifier returnType, List<TypedTerm> arguments) implements SmtTerm {
+    record Application(org.semgus.java_test.object.Identifier name, org.semgus.java_test.object.Identifier returnType, List<TypedTerm> arguments) implements SmtTerm {
 
         @Override
         public String toString() {
@@ -279,7 +280,7 @@ public sealed interface SmtTerm {
          * @param type The argument type.
          * @param term The subterm being passed as an argument.
          */
-        public record TypedTerm(Identifier type, SmtTerm term) {
+        public record TypedTerm(org.semgus.java_test.object.Identifier type, SmtTerm term) {
 
             @Override
             public String toString() {
@@ -297,7 +298,7 @@ public sealed interface SmtTerm {
      * @param bindings The variables bound by the quantifier.
      * @param child    The subterm.
      */
-    record Quantifier(Type type, List<TypedVar> bindings, SmtTerm child) implements SmtTerm {
+    record Quantifier(Type type, List<org.semgus.java_test.object.TypedVar> bindings, SmtTerm child) implements SmtTerm {
 
         /**
          * Represents a type of quantifier.
@@ -361,7 +362,7 @@ public sealed interface SmtTerm {
 
     /**
      * Represents a pattern-matching expression in an SMT formula. Used to match against constructors for inductive
-     * types as defined by {@link org.semgus.java.event.SmtSpecEvent.DefineDatatypeEvent}.
+     * types as defined by {@link SmtSpecEvent.DefineDatatypeEvent}.
      *
      * @param matchTerm The term being matched on.
      * @param cases     The match cases.

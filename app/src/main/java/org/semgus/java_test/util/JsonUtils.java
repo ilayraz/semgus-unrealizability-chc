@@ -1,4 +1,4 @@
-package org.semgus.java.util;
+package org.semgus.java_test.util;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;

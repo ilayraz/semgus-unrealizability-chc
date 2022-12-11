@@ -1,6 +1,6 @@
-package org.semgus.java.event;
+package org.semgus.java_test.event;
 
-import org.semgus.java.object.AttributeValue;
+import org.semgus.java_test.object.AttributeValue;
 
 /**
  * A SemGuS parser event of the "meta" type.

@@ -1,9 +1,9 @@
-package org.semgus.java.object;
+package org.semgus.java_test.object;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
-import org.semgus.java.util.DeserializationException;
-import org.semgus.java.util.JsonUtils;
+import org.semgus.java_test.util.DeserializationException;
+import org.semgus.java_test.util.JsonUtils;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -19,9 +19,9 @@ public sealed interface AttributeValue {
      *
      * @param attrValDtoRaw A JSON representation of an attribute value.
      * @return The deserialized attribute value.
-     * @throws DeserializationException If {@code attrValDtoRaw} is not a valid representation of an attribute value.
+     * @throws org.semgus.java_test.util.DeserializationException If {@code attrValDtoRaw} is not a valid representation of an attribute value.
      */
-    static AttributeValue deserialize(@Nullable Object attrValDtoRaw) throws DeserializationException {
+    static AttributeValue deserialize(@Nullable Object attrValDtoRaw) throws org.semgus.java_test.util.DeserializationException {
         if (attrValDtoRaw == null) { // it's a nullary attribute
             return new Unit();
         } else if (attrValDtoRaw instanceof String value) { // it's a string value
@@ -31,13 +31,13 @@ public sealed interface AttributeValue {
             for (int i = 0; i < attrValDto.size(); i++) {
                 try {
                     entries.add(deserialize(attrValDto.get(i))); // recursively deserialize the list elements
-                } catch (DeserializationException e) {
+                } catch (org.semgus.java_test.util.DeserializationException e) {
                     throw e.prepend(i);
                 }
             }
             return new AList(entries);
         }
-        throw new DeserializationException(
+        throw new org.semgus.java_test.util.DeserializationException(
                 String.format("Could not deserialize attribute value \"%s\"", attrValDtoRaw));
     }
 
@@ -47,9 +47,9 @@ public sealed interface AttributeValue {
      * @param parentDto The parent JSON object.
      * @param key       The key whose value should be deserialized.
      * @return The deserialized attribute value.
-     * @throws DeserializationException If the value at {@code key} is not a valid representation of an attribute value.
+     * @throws org.semgus.java_test.util.DeserializationException If the value at {@code key} is not a valid representation of an attribute value.
      */
-    static AttributeValue deserializeAt(JSONObject parentDto, String key) throws DeserializationException {
+    static AttributeValue deserializeAt(JSONObject parentDto, String key) throws org.semgus.java_test.util.DeserializationException {
         Object attrValDto = JsonUtils.get(parentDto, key);
         try {
             return deserialize(attrValDto);

@@ -1,4 +1,4 @@
-package org.semgus.java.util;
+package org.semgus.java_test.util;
 
 /**
  * An exception indicating that something failed during JSON deserialization. The full path to the error should be

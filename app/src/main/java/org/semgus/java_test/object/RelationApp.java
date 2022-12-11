@@ -1,9 +1,9 @@
-package org.semgus.java.object;
+package org.semgus.java_test.object;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
-import org.semgus.java.util.DeserializationException;
-import org.semgus.java.util.JsonUtils;
+import org.semgus.java_test.util.DeserializationException;
+import org.semgus.java_test.util.JsonUtils;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -14,36 +14,36 @@ import java.util.stream.Collectors;
  * @param name      The name of the relation.
  * @param arguments The variables that are passed as arguments to the relation.
  */
-public record RelationApp(String name, List<TypedVar> arguments) {
+public record RelationApp(String name, List<org.semgus.java_test.object.TypedVar> arguments) {
 
     /**
      * Deserializes a relation application from the SemGuS JSON format.
      *
      * @param relAppDto JSON object representing the relation application.
      * @return The deserialized relation application.
-     * @throws DeserializationException If {@code relAppDto} is not a valid representation of a relation application.
+     * @throws org.semgus.java_test.util.DeserializationException If {@code relAppDto} is not a valid representation of a relation application.
      */
-    public static RelationApp deserialize(JSONObject relAppDto) throws DeserializationException {
-        String name = JsonUtils.getString(relAppDto, "name");
+    public static RelationApp deserialize(JSONObject relAppDto) throws org.semgus.java_test.util.DeserializationException {
+        String name = org.semgus.java_test.util.JsonUtils.getString(relAppDto, "name");
 
         // deserialize argument name and type lists
-        JSONArray sigDto = JsonUtils.getArray(relAppDto, "signature");
-        List<String> args = JsonUtils.getStrings(relAppDto, "arguments");
+        JSONArray sigDto = org.semgus.java_test.util.JsonUtils.getArray(relAppDto, "signature");
+        List<String> args = org.semgus.java_test.util.JsonUtils.getStrings(relAppDto, "arguments");
         if (sigDto.size() != args.size()) {
-            throw new DeserializationException(String.format(
+            throw new org.semgus.java_test.util.DeserializationException(String.format(
                     "Signature and arguments of relation application have different lengths %d != %d",
                     sigDto.size(), args.size()));
         }
 
         // deserialize type identifiers
-        List<Identifier> types;
+        List<org.semgus.java_test.object.Identifier> types;
         try {
             types = Identifier.deserializeList(sigDto);
-        } catch (DeserializationException e) {
+        } catch (org.semgus.java_test.util.DeserializationException e) {
             throw e.prepend("signature");
         }
 
-        return new RelationApp(name, TypedVar.fromNamesAndTypes(args, types));
+        return new RelationApp(name, org.semgus.java_test.object.TypedVar.fromNamesAndTypes(args, types));
     }
 
     /**
@@ -52,10 +52,10 @@ public record RelationApp(String name, List<TypedVar> arguments) {
      * @param parentDto The parent JSON object.
      * @param key       The key whose value should be deserialized.
      * @return The deserialized relation application.
-     * @throws DeserializationException If the value at {@code key} is not a valid representation of a relation
+     * @throws org.semgus.java_test.util.DeserializationException If the value at {@code key} is not a valid representation of a relation
      *                                  application.
      */
-    public static RelationApp deserializeAt(JSONObject parentDto, String key) throws DeserializationException {
+    public static RelationApp deserializeAt(JSONObject parentDto, String key) throws org.semgus.java_test.util.DeserializationException {
         JSONObject relAppDto = JsonUtils.getObject(parentDto, key);
         try {
             return deserialize(relAppDto);

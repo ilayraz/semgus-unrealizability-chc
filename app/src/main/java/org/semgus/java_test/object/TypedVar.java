@@ -1,4 +1,4 @@
-package org.semgus.java.object;
+package org.semgus.java_test.object;
 
 import java.util.List;
 import java.util.stream.Collectors;

@@ -4,8 +4,6 @@
 package org.semgus.unrealizability;
 
 import com.microsoft.z3.*;
-import org.semgus.java.object.SmtTerm;
-import org.semgus.java.object.TypedVar;
 import org.semgus.java.problem.ProblemGenerator;
 import org.semgus.java.problem.SemgusProblem;
 

@@ -1,8 +1,8 @@
-package org.semgus.java.event;
+package org.semgus.java_test.event;
 
-import org.semgus.java.object.Identifier;
-import org.semgus.java.object.SmtTerm;
-import org.semgus.java.object.TypedVar;
+import org.semgus.java_test.object.Identifier;
+import org.semgus.java_test.object.SmtTerm;
+import org.semgus.java_test.object.TypedVar;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -43,7 +43,7 @@ public sealed interface SmtSpecEvent extends SpecEvent {
     ) implements SmtSpecEvent {
 
         /**
-         * Constructs a {@link org.semgus.java.object.SmtTerm.Lambda} lambda abstraction from the function definition.
+         * Constructs a {@link SmtTerm.Lambda} lambda abstraction from the function definition.
          *
          * @return The new lambda abstraction SMT term.
          */

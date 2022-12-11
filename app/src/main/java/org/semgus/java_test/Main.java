@@ -1,11 +1,11 @@
-package org.semgus.java;
+package org.semgus.java_test;
 
 import org.json.simple.parser.ParseException;
-import org.semgus.java.event.EventParser;
-import org.semgus.java.event.SpecEvent;
-import org.semgus.java.problem.ProblemGenerator;
-import org.semgus.java.problem.SemgusProblem;
-import org.semgus.java.util.DeserializationException;
+import org.semgus.java_test.event.EventParser;
+import org.semgus.java_test.event.SpecEvent;
+import org.semgus.java_test.problem.ProblemGenerator;
+import org.semgus.java_test.problem.SemgusProblem;
+import org.semgus.java_test.util.DeserializationException;
 
 import java.io.BufferedReader;
 import java.io.IOException;
