@@ -15,62 +15,24 @@ import java.util.*;
 
 public class App {
     public static void main(String[] args) {
-        String path = "/home/ilayraz/projects/semgus/semgus-unrealizability-chc/plus-times.json";
-
         com.microsoft.z3.Global.ToggleWarningMessages(true);
         SemgusProblem problem;
-        try (Reader reader = new FileReader(path)) {
+        try (Reader reader = new FileReader(args[0])) {
             problem = ProblemGenerator.parse(reader);
         } catch (Exception ex) {
             ex.printStackTrace();
             return;
         }
+
+        Context ctx = new Context();
+        var parser = new SemgusProblemParser(ctx);
+        var constraints = parser.parseProductions(problem);
+        constraints.forEach(System.out::println);
         //System.out.println(problem.dump());
 
-        smallTest();
+        //smallTest();
 
-        System.out.println(problem.smtContext());
-    }
-
-
-    static void parseProblem(SemgusProblem problem) {
-        Context ctx = new Context();
-        IntSort Z = ctx.getIntSort();
-        BoolSort B = ctx.getBoolSort();
-
-        Map<String, Sort> knownTypeMap = new HashMap<>();
-        knownTypeMap.put("Int", Z);
-        knownTypeMap.put("Bool", B);
-
-        List<FuncDecl<BoolSort>> indicators = new ArrayList<>();
-        List<BoolExpr> constraints = new ArrayList<>();
-
-        for (var entry : problem.smtContext().functions().entrySet()) {
-            String name = entry.getKey();
-            var function = entry.getValue();
-
-            // Used LinkedHashMap to maintain insertion order
-            LinkedHashMap<String, Expr> arguments = new LinkedHashMap<>(function.arguments().size());
-
-            // Parse types we know
-            for (TypedVar var : function.arguments()) {
-                String typeName = var.type().name();
-                if (knownTypeMap.containsKey(typeName)) {
-                    Sort type = knownTypeMap.get(typeName);
-                    arguments.put(var.name(), ctx.mkConst(var.name(), type));
-                }
-            }
-
-            Sort[] argumentTypes = arguments.values().stream().map(Expr::getSort).toArray(Sort[]::new);
-            var indicator = ctx.mkFuncDecl(name, argumentTypes, B);
-            indicators.add(indicator);
-
-            // Parse each production
-            List<BoolExpr> productions = new ArrayList<>();
-            for (SmtTerm.Match.Case term : ((SmtTerm.Match) function.body()).cases()) {
-                SmtTerm.Application result = (SmtTerm.Application) term.result();
-            }
-        }
+        //System.out.println(problem.smtContext());
     }
 
     static void smallTest() {
