@@ -1,114 +1,199 @@
 package org.semgus.unrealizability;
 
 import com.microsoft.z3.*;
-import org.semgus.java.object.Identifier;
 import org.semgus.java.object.SmtContext;
 import org.semgus.java.object.SmtTerm;
 import org.semgus.java.object.TypedVar;
 import org.semgus.java.problem.SemgusProblem;
 
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class SemgusProblemParser {
-    Context ctx;
+    private static final String VAR_PREFIX = "vec_";
+    private final Context ctx;
+    private final SemgusProblem problem;
+    private LinkedHashMap<String, Expr> variables = null;
+    private Map<String, FuncDecl<BoolSort>> functions = null;
+    private Integer numExamples = null;
 
-    public SemgusProblemParser(Context ctx) {
+    public SemgusProblemParser(Context ctx, SemgusProblem problem) {
         this.ctx = ctx;
-    }
-
-    public List<BoolExpr> parseProductions(SemgusProblem problem) {
-        Map<String, FuncDecl<BoolSort>> indicators = new HashMap<>();
-        for (var entry : problem.smtContext().functions().entrySet()) {
-            String name = entry.getKey();
-            var func = entry.getValue();
-            indicators.put(name, makeIndicator(name, func));
-        }
-
-        List<BoolExpr> productions = new ArrayList<>();
-        for (var entry : problem.smtContext().functions().entrySet()) {
-            productions.add(parseFunction(entry.getKey(), entry.getValue(), indicators));
-        }
-
-        return productions;
+        this.problem = problem;
     }
 
     /**
-     * Parse a function (Semgus production) into an indicator function and constraints
-     * @param name Name of production
-     * @param function SemgusProblem.SmtContext representation of the production
+     * Parses an entire Semgus problem into a format usable by Z3
      */
-    public BoolExpr parseFunction(String name, SmtContext.Function function, Map<String, FuncDecl<BoolSort>> indicators) {
-        LinkedHashMap<String, Expr> arguments = parseArguments(function.arguments());
-        var indicator = indicators.get(name);
+    public List<BoolExpr> parseProblem() {
+        functions = problem.smtContext().functions().entrySet().stream().collect(
+                Collectors.toMap(Map.Entry::getKey,
+                        entry -> makeFunction(entry.getValue(), entry.getKey(), problem.constraints().size())));
 
-        // Parse each production
-        List<BoolExpr> productions = new ArrayList<>();
-        for (SmtTerm.Match.Case term : ((SmtTerm.Match) function.body()).cases()) {
-            productions.add(parseProduction(indicator, arguments, term, indicators));
+        SemgusConstraints constraints = parseConstraints(problem.constraints());
+        List<BoolExpr> assertions = new ArrayList<>();
+
+        for (var entry : problem.smtContext().functions().entrySet())  {
+            var assertion = parseFunction(entry.getKey(), entry.getValue(), constraints.getAssertions());
+            assertions.add(assertion);
         }
 
-        //System.out.println("+++++" + name);
-        //productions.forEach(System.out::println);
 
-        var joinedProductions = ctx.mkAnd(productions.toArray(BoolExpr[]::new));
-        return ctx.mkForall(arguments.values().toArray(Expr[]::new), joinedProductions,1, null, null, null, null);
+
+        List<Expr> vars = new ArrayList<>();
+        List<BoolExpr> resultAssertions = new ArrayList<>();
+        for (int i = 0; i < constraints.getResults().size(); i++) {
+            var expr = constraints.getResults().get(i);
+            var var = ctx.mkConst("r" + i, expr.getSort());
+            var assertion = ctx.mkEq(var, expr);
+
+            vars.add(var);
+            resultAssertions.add(assertion);
+        }
+
+        var targetFunction = functions.entrySet()
+                .stream()
+                .filter(entry -> entry.getKey().startsWith(problem.targetNonTerminal().name()))
+                .map(Map.Entry::getValue)
+                .findAny()
+                .get();
+        var resultAssertion = ctx.mkForall(vars.toArray(Expr[]::new),
+                ctx.mkImplies(
+                        targetFunction.apply(vars.toArray(Expr[]::new)),
+                        ctx.mkNot(
+                                ctx.mkAnd(
+                                        resultAssertions.toArray(BoolExpr[]::new)
+                                )
+                        )
+                ), 1, null, null, null, null);
+
+        assertions.add(resultAssertion);
+//        assertions.forEach(System.out::println);
+
+        return assertions;
     }
 
     /**
-     * Parses a single production
-     * @param indicator Indicator function representing the current function
-     * @param arguments argument inputs to the indicator function
-     * @param production Term to parse
-     * @return Z3 expression representing the production
+     * Turns the given function into a vectorized indicator function
      */
-    private BoolExpr parseProduction(FuncDecl<BoolSort> indicator, LinkedHashMap<String, Expr> arguments, SmtTerm.Match.Case production, Map<String, FuncDecl<BoolSort>> indicators) {
-        Expr<BoolSort> indicatorApplication = indicator.apply(arguments.values().toArray(Expr[]::new));
-        BoolExpr boolExpr = (BoolExpr) parseTerm(arguments, production.result(), new HashMap<>(), indicators);
+    private FuncDecl<BoolSort> makeFunction(SmtContext.Function function, String name, int size) {
+        var arguments = function.arguments();
 
-        return ctx.mkImplies(boolExpr, indicatorApplication);
+        // Assume last parameter is the return type since parser doesn't give us the return information
+        Sort type = parseSort(arguments.get(arguments.size() - 1).type().name()).get();
+        Sort[] inputType = new Sort[size];
+        for (int i = 0; i < size; inputType[i++] = type);
+
+        return ctx.mkFuncDecl(name, inputType, ctx.getBoolSort());
     }
 
     /**
-     * Parses a term with unknown type
+     * Parses constraints of the problem
      */
-    private Expr<?> parseTerm(LinkedHashMap<String, Expr> arguments, SmtTerm term, Map<String, Expr> contextArguments, Map<String, FuncDecl<BoolSort>> indicators) {
+    private SemgusConstraints parseConstraints(List<SmtTerm> constraints) {
+        List<List<Expr>> inputs = new ArrayList<>();
+
+        List<Expr> results = new ArrayList<>();
+
+        // parse by column
+        int numColums = ((SmtTerm.Application) constraints.get(0)).arguments().size();
+        for (int column = 1; column < numColums; column++) {
+            List<Expr> inputRow = new ArrayList<>();
+            for (SmtTerm constraint : constraints) {
+                SmtTerm input = ((SmtTerm.Application) constraint).arguments().get(column).term();
+                Expr<?> expr = parseTerm(input, -1);
+                if (column == numColums - 1) {
+                    results.add(expr);
+                } else {
+                    inputRow.add(expr);
+                }
+            }
+            if (!inputRow.isEmpty()) {
+                inputs.add(inputRow);
+            }
+        }
+
+        return new SemgusConstraints(inputs, results);
+    }
+
+    /**
+     * Parse productions in vectorized form
+     * @param name name of production
+     * @param function production
+     */
+    private BoolExpr parseFunction(String name, SmtContext.Function function, List<List<Expr>> examples) {
+        var myFunction = functions.get(name);
+        numExamples = myFunction.getDomainSize();
+
+        // Variables to quantify
+        List<String> arguments = function.arguments().stream().map(TypedVar::name).toList();
+        this.variables = parseArguments(arguments, myFunction.getDomain()[0], examples);
+        Expr[] initialVariables = variables.entrySet().stream()
+                .filter(entry -> entry.getKey().endsWith("_" + arguments.get(arguments.size() - 1))) // Only get those that have variable name matching the last argument
+                .map(Map.Entry::getValue)
+                .toArray(Expr[]::new);
+
+
+        BoolExpr[] assertions = ((SmtTerm.Match) function.body()).cases().stream()
+                .map(SmtTerm.Match.Case::result)
+                .map(production -> IntStream.range(0, numExamples).boxed()
+                        .map(varIndex -> parseTerm(production, varIndex))
+                        .filter(Objects::nonNull)
+                        .toArray(BoolExpr[]::new))
+                .map(ctx::mkAnd)
+                .map(Expr::simplify)
+//                .peek(System.out::println)
+                .map(disjoint -> ctx.mkImplies(disjoint, myFunction.apply(initialVariables)))
+                .toArray(BoolExpr[]::new);
+
+        BoolExpr disjoint = ctx.mkAnd(assertions);
+        var varArray = variables.values().stream()
+                .filter(var -> !(var.isNumeral() || var.isFalse() || var.isTrue()))
+                .toArray(Expr[]::new);
+        return ctx.mkForall(varArray, disjoint, 1, null, null, ctx.mkSymbol(name), null);
+    }
+
+    /**
+     * Map function's input arguments into vectorized form with values from constraints
+     * @param arguments Function's arguments
+     */
+    private LinkedHashMap<String, Expr> parseArguments(List<String> arguments, Sort sort, List<List<Expr>> examples) {
+        LinkedHashMap<String, Expr> valueMapping = new LinkedHashMap<>();
+
+        for (int i = 1; i < arguments.size(); i++) {
+            String argument = arguments.get(i);
+            var example =  i <= examples.size() ? examples.get(i  - 1) : null;
+            for (int j = 0; j < numExamples; j++) {
+                String argumentVarName = getVarName(argument, j);
+
+                Expr exampleValue;
+                if (example == null) {
+                    exampleValue = ctx.mkConst(argumentVarName, sort);
+                } else {
+                    exampleValue = example.get(j);
+                }
+
+                valueMapping.put(argumentVarName, exampleValue);
+            }
+        }
+
+        return valueMapping;
+    }
+
+    private Expr<?> parseTerm(SmtTerm term, int varIndex) {
         return switch(term) {
-            case SmtTerm.Application app -> parseApplication(arguments, app, contextArguments, indicators);
-            case SmtTerm.Variable var -> parseVariable(var.name(), arguments, contextArguments);
+            case SmtTerm.Application app -> parseApplication(app, varIndex);
+            case SmtTerm.Variable var -> variables.get(getVarName(var.name(), varIndex));
             case SmtTerm.CNumber num -> ctx.mkInt(num.value());
-            case SmtTerm.Quantifier quantifier -> parseQuantifier(arguments, quantifier, contextArguments, indicators);
+            case SmtTerm.Quantifier quantifier -> parseQuantifier(quantifier, varIndex);
             default -> throw new IllegalStateException("Unexpected value: " + term + ", " + term.getClass());
         };
     }
 
-    private Expr<?> parseVariable(String name, Map<String, Expr> arguments, Map<String, Expr> contextArguments) {
-        Expr<?> variable = arguments.get(name);
-        if (variable == null) {
-            variable = contextArguments.get(name);
-        }
-
-        return variable;
-    }
-
-    private BoolExpr parseQuantifier(LinkedHashMap<String, Expr> arguments, SmtTerm.Quantifier term, Map<String, Expr> contextArguments, Map<String, FuncDecl<BoolSort>> indicators) {
-        Map<String, Expr> newContext = new HashMap<>(contextArguments);
-        var bindings = parseArguments(term.bindings());
-        newContext.putAll(bindings);
-        BoolExpr constraint = (BoolExpr) parseTerm(arguments, term.child(), newContext, indicators);
-
-        return switch(term.type()) {
-            case EXISTS -> ctx.mkExists(bindings.values().toArray(new Expr[0]), constraint, 1, null, null, null, null);
-            case FOR_ALL -> throw new RuntimeException();
-        };
-    }
-
-    /**
-     * Parses an application term
-     */
-    @SuppressWarnings("unchecked")
-    private Expr<?> parseApplication(LinkedHashMap<String, Expr> arguments, SmtTerm.Application application, Map<String, Expr> contextArguments, Map<String, FuncDecl<BoolSort>> indicators) {
+    private Expr<?> parseApplication(SmtTerm.Application application, int varIndex) {
         Expr<?>[] inputs = application.arguments().stream()
-                .map(arg -> parseTerm(arguments, arg.term(), contextArguments, indicators))
+                .map(arg -> parseTerm(arg.term(), varIndex))
                 .filter(Objects::nonNull)
                 .toArray(Expr[]::new);
 
@@ -131,50 +216,57 @@ public class SemgusProblemParser {
             case "ite" -> ctx.mkITE((Expr<BoolSort>) inputs[0], inputs[1], inputs[2]);
 
             // variadic
-            case "and" -> ctx.mkAnd((Expr<BoolSort>[]) inputs);
-            case "or" -> ctx.mkOr((Expr<BoolSort>[]) inputs);
-            case "+" -> ctx.mkAdd((Expr<IntSort>[]) inputs);
-            case "-" -> ctx.mkSub((Expr<IntSort>[]) inputs);
-            case "*" -> ctx.mkMul((Expr<IntSort>[]) inputs);
+            case "and" -> inputs.length > 1 ? ctx.mkAnd((Expr<BoolSort>[]) inputs) : inputs[0];
+            case "or" -> inputs.length > 1 ? ctx.mkOr((Expr<BoolSort>[]) inputs) : inputs[0];
+            case "+" -> inputs.length > 1 ? ctx.mkAdd((Expr<IntSort>[]) inputs) : inputs[0];
+            case "-" -> inputs.length > 1 ? ctx.mkSub((Expr<IntSort>[]) inputs) : inputs[0];
+            case "*" -> inputs.length > 1 ? ctx.mkMul((Expr<IntSort>[]) inputs) : inputs[0];
 
             // Indicator or throw
             default -> {
-                var indicator = indicators.get(name);
-                if (indicator != null) {
-                    yield ctx.mkApp(indicator, inputs);
+                var function = functions.get(name);
+                if (function != null) {
+//                    if (varIndex == numExamples - 1) {
+                    if (true) {
+                        var argument = application.arguments();
+                        SmtTerm lastTerm = argument.get(argument.size() - 1).term();
+
+                        // Translate last term (result) to result vector
+                        Expr[] vectorizedInputs = IntStream.range(0, numExamples).boxed()
+                                .map(index -> parseTerm(lastTerm, index))
+                                .toArray(Expr[]::new);
+
+                        yield ctx.mkApp(function, vectorizedInputs);
+                    } else {
+                        yield null;
+                    }
                 }
                 throw new IllegalStateException("Unexpected value: " + application.name().name());
             }
         };
     }
 
-    /**
-     * Parses the arguments of a function in SemgusProblem. Only parses arguments with known types.
-     * Uses LinkedHashMap to maintain insertion order
-     * @return Parsed arguments, maintaining same order as input
-     */
-    private LinkedHashMap<String, Expr> parseArguments(List<TypedVar> arguments) {
-        LinkedHashMap<String, Expr> parsedArguments = new LinkedHashMap<>();
-
-        for (TypedVar argument : arguments) {
-            String name = argument.name();
-            parseSort(argument.type().name())
-                    .map(sort -> ctx.mkConst(name, sort))
-                    .ifPresent(constant -> parsedArguments.put(name,  constant));
+    private Expr<?> parseQuantifier(SmtTerm.Quantifier quantifier, int varIndex) {
+        // Add arguments as new variables
+        for (int i = 0; i < numExamples; i++) {
+            for (var identifier : quantifier.bindings()) {
+                String name = getVarName(identifier.name(), i);
+                parseSort(identifier.type().name())
+                        .map(sort -> ctx.mkConst(name, sort))
+                        .ifPresent(constant -> {
+//                            if (variables.containsKey(name))
+//                                System.err.println("Variables got two: " + name);
+//                            else
+                                variables.put(name, constant);
+                        });
+            }
         }
 
-        return parsedArguments;
+        return parseTerm(quantifier.child(), varIndex);
     }
 
-    private FuncDecl<BoolSort> makeIndicator(String name, SmtContext.Function function) {
-        Sort[] inputs = function.arguments().stream()
-                .map(TypedVar::type)
-                .map(Identifier::name)
-                .map(this::parseSort)
-                .flatMap(Optional::stream)
-                .toArray(Sort[]::new);
-
-        return ctx.mkFuncDecl(name, inputs, ctx.getBoolSort());
+    private String getVarName(String name, int index) {
+        return VAR_PREFIX + index + "_" + name;
     }
 
     /**
