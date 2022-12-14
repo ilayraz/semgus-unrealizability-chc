@@ -1,6 +1,7 @@
 package org.semgus.unrealizability;
 
 import com.microsoft.z3.*;
+import org.semgus.java.object.Identifier;
 import org.semgus.java.object.SmtContext;
 import org.semgus.java.object.SmtTerm;
 import org.semgus.java.object.TypedVar;
@@ -81,7 +82,7 @@ public class SemgusProblemParser {
         var arguments = function.arguments();
 
         // Assume last parameter is the return type since parser doesn't give us the return information
-        Sort type = parseSort(arguments.get(arguments.size() - 1).type().name()).get();
+        Sort type = parseSort(arguments.get(arguments.size() - 1).type()).get();
         Sort[] inputType = new Sort[size];
         for (int i = 0; i < size; inputType[i++] = type);
 
@@ -185,8 +186,9 @@ public class SemgusProblemParser {
         return switch(term) {
             case SmtTerm.Application app -> parseApplication(app, varIndex);
             case SmtTerm.Variable var -> variables.get(getVarName(var.name(), varIndex));
-            case SmtTerm.CNumber num -> ctx.mkInt(num.value());
             case SmtTerm.Quantifier quantifier -> parseQuantifier(quantifier, varIndex);
+            case SmtTerm.CNumber num -> ctx.mkInt(num.value());
+            case SmtTerm.CBitVector bv -> ctx.mkBV(bv.value().toLongArray()[0],  bv.size()); // Assumes bit vector fits in a single long
             default -> throw new IllegalStateException("Unexpected value: " + term + ", " + term.getClass());
         };
     }
@@ -207,10 +209,22 @@ public class SemgusProblemParser {
             // Unary
             case "not" -> ctx.mkNot((Expr<BoolSort>) inputs[0]);
 
+            case "bvneg" -> ctx.mkBVNeg((Expr<BitVecSort>) inputs[0]);
+            case "bvnot" -> ctx.mkBVNot((Expr<BitVecSort>) inputs[0]);
+
             // Binary
             case "=" -> ctx.mkEq(inputs[0], inputs[1]);
             case ">" -> ctx.mkGt((Expr<? extends ArithSort>) inputs[0], (Expr<? extends ArithSort>) inputs[1]);
             case "<" -> ctx.mkLt((Expr<? extends ArithSort>) inputs[0], (Expr<? extends ArithSort>) inputs[1]);
+
+            case "bvadd" -> ctx.mkBVAdd((Expr<BitVecSort>) inputs[0], (Expr<BitVecSort>) inputs[1]);
+            case "bvsub" -> ctx.mkBVSub((Expr<BitVecSort>) inputs[0], (Expr<BitVecSort>) inputs[1]);
+            case "bvmul" -> ctx.mkBVMul((Expr<BitVecSort>) inputs[0], (Expr<BitVecSort>) inputs[1]);
+            case "bvor" -> ctx.mkBVOR((Expr<BitVecSort>) inputs[0], (Expr<BitVecSort>) inputs[1]);
+            case "bvand" -> ctx.mkBVAND((Expr<BitVecSort>) inputs[0], (Expr<BitVecSort>) inputs[1]);
+            case "bvxor" -> ctx.mkBVXOR((Expr<BitVecSort>) inputs[0], (Expr<BitVecSort>) inputs[1]);
+            case "bvnor" -> ctx.mkBVNOR((Expr<BitVecSort>) inputs[0], (Expr<BitVecSort>) inputs[1]);
+            case "bvnand" -> ctx.mkBVNAND((Expr<BitVecSort>) inputs[0], (Expr<BitVecSort>) inputs[1]);
 
             // Ternary
             case "ite" -> ctx.mkITE((Expr<BoolSort>) inputs[0], inputs[1], inputs[2]);
@@ -251,7 +265,7 @@ public class SemgusProblemParser {
         for (int i = 0; i < numExamples; i++) {
             for (var identifier : quantifier.bindings()) {
                 String name = getVarName(identifier.name(), i);
-                parseSort(identifier.type().name())
+                parseSort(identifier.type())
                         .map(sort -> ctx.mkConst(name, sort))
                         .ifPresent(constant -> {
 //                            if (variables.containsKey(name))
@@ -273,10 +287,11 @@ public class SemgusProblemParser {
      * Converts the string type used by SemgusProblem to the type used by Z3
      * @return Optional containing sort if type is recognized, otherwise empty optional
      */
-    private Optional<Sort> parseSort(String type) {
-        return Optional.ofNullable(switch (type) {
+    private Optional<Sort> parseSort(Identifier type) {
+        return Optional.ofNullable(switch (type.name()) {
             case "Int" -> ctx.getIntSort();
             case "Bool" -> ctx.getBoolSort();
+            case "BitVec" ->  ctx.mkBitVecSort(((Identifier.Index.NInt) type.indices()[0]).value());
             default -> null;
         });
     }
