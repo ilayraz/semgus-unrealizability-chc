@@ -148,7 +148,7 @@ public class SemgusProblemParser {
                 .map(disjoint -> ctx.mkImplies(disjoint, myFunction.apply(initialVariables)))
                 .toArray(BoolExpr[]::new);
 
-        BoolExpr disjoint = ctx.mkAnd(assertions);
+        BoolExpr disjoint = (BoolExpr) ctx.mkAnd(assertions).simplify();
         var varArray = variables.values().stream()
                 .filter(var -> !(var.isNumeral() || var.isFalse() || var.isTrue()))
                 .toArray(Expr[]::new);
