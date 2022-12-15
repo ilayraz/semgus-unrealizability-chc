@@ -1,0 +1,14 @@
+[
+{"keyword":"format-version","value":"2.0.0","$event":"set-info","$type":"meta"},
+{"keyword":"author","value":["Anvay Grover"],"$event":"set-info","$type":"meta"},
+{"keyword":"realizable","value":"true","$event":"set-info","$type":"meta"},
+{"name":"Start.Sem","rank":{"argumentSorts":["Start","Int","Int","Int","Int","Int","Int","Int","Int","Int","Int"],"returnSort":"Bool"},"$event":"declare-function","$type":"smt"},
+{"name":"S.Sem","rank":{"argumentSorts":["S","Int","Int","Int","Int","Int","Int","Int","Int","Int","Int"],"returnSort":"Bool"},"$event":"declare-function","$type":"smt"},
+{"name":"E.Sem","rank":{"argumentSorts":["E","Int","Int","Int","Int","Int","Int"],"returnSort":"Bool"},"$event":"declare-function","$type":"smt"},
+{"name":"B.Sem","rank":{"argumentSorts":["B","Int","Int","Int","Int","Int","Bool"],"returnSort":"Bool"},"$event":"declare-function","$type":"smt"},
+{"name":"sum_by_while","termType":"Start","grammar":{"nonTerminals":[{"name":"@Start__agtt","termType":"Start"}],"productions":[]},"$event":"synth-fun","$type":"semgus"},
+{"constraint":{"name":"Start.Sem","returnSort":"Bool","argumentSorts":["Start","Int","Int","Int","Int","Int","Int","Int","Int","Int","Int"],"arguments":[{"name":"sum_by_while","returnSort":"Start","argumentSorts":[],"arguments":[],"$termType":"application"},4,5,1,3,2,15,5,1,3,2],"$termType":"application"},"$event":"constraint","$type":"semgus"},
+{"constraint":{"name":"Start.Sem","returnSort":"Bool","argumentSorts":["Start","Int","Int","Int","Int","Int","Int","Int","Int","Int","Int"],"arguments":[{"name":"sum_by_while","returnSort":"Start","argumentSorts":[],"arguments":[],"$termType":"application"},13,16,9,11,21,70,16,9,11,21],"$termType":"application"},"$event":"constraint","$type":"semgus"},
+{"$event":"check-synth","$type":"semgus"},
+{"$type":"meta","$event":"end-of-stream"}
+]

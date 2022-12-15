@@ -20,9 +20,6 @@
         ($x)
         ($y)
         ($z)
-        ($0)
-        ($1)
-        ($+ E E)
         ($ite B E E)
     )
     (  ; B productions
@@ -49,14 +46,6 @@
        (($x (= r x))
         ($y (= r y))
         ($z (= r z))
-        ($0 (= r 0))
-        ($1 (= r 1))
-        (($+ et1 et2)
-         (exists ((r1 Int) (r2 Int))
-             (and
-              (E.Sem et1 x y z r1)
-              (E.Sem et2 x y z r2)
-              (= r (+ r1 r2)))))
         (($ite t1 t2 t3)
             (exists ((b Bool)) (and
                 (B.Sem t1 x y z b)
@@ -73,8 +62,7 @@
     :input (x y z) :output (r))
 
    (! (match bt ; B.Sem definitions
-        (($t (= r true))
-         ($f(= r false))
+        (
          (($not bt1)
           (exists ((rb Bool))
               (and
@@ -113,8 +101,10 @@
 (constraint (E.Sem mid 1 3 2 2))
 (constraint (E.Sem mid 2 1 3 2))
 (constraint (E.Sem mid 2 3 1 2))
-(constraint (E.Sem mid 3 1 2 2))
-(constraint (E.Sem mid 3 2 1 2))
+(constraint (E.Sem mid 3 1 2 3))
+;;; (constraint (E.Sem mid 3 2 1 2))
+;;; (constraint (E.Sem mid 1 1 1 1))
+;;; (constraint (E.Sem mid 2 1 2 2))
 
 ;;;
 ;;; Instruct the solver to find mid

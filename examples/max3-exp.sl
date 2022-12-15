@@ -1,5 +1,5 @@
 ;;;;
-;;;; mid-exp.sl - The mid example problem encoded in SemGuS
+;;;; max3-exp.sl - The max3 example problem encoded in SemGuS
 ;;;;
 
 ;;; Metadata
@@ -57,18 +57,13 @@
               (E.Sem et1 x y z r1)
               (E.Sem et2 x y z r2)
               (= r (+ r1 r2)))))
-        (($ite t1 t2 t3)
-            (exists ((b Bool)) (and
-                (B.Sem t1 x y z b)
-                (= b true)
-                (E.Sem t2 x y z r)
-            ))
-            (exists ((b Bool)) (and
-                (B.Sem t1 x y z b)
-                (= b false)
-                (E.Sem t3 x y z r)
-            ))
-        )))
+        (($ite bt1 etc eta)
+         (exists ((rb Bool) (rc Int) (ra Int))
+             (and
+              (B.Sem bt1 x y z rb)
+              (E.Sem etc x y z rc)
+              (E.Sem eta x y z ra)
+              (= r(ite rb rc ra)))))))
 
     :input (x y z) :output (r))
 
@@ -104,19 +99,19 @@
 ;;;
 ;;; Function to synthesize - a term rooted at E
 ;;;
-(synth-fun mid() E) ; Using the default universe of terms rooted at E
+(synth-fun max3 () E) ; Using the default universe of terms rooted at E
 
 ;;;
 ;;; Constraints - examples
 ;;;
-(constraint (E.Sem mid 1 2 3 2))
-(constraint (E.Sem mid 1 3 2 2))
-(constraint (E.Sem mid 2 1 3 2))
-(constraint (E.Sem mid 2 3 1 2))
-(constraint (E.Sem mid 3 1 2 2))
-(constraint (E.Sem mid 3 2 1 2))
+(constraint (E.Sem max3 4 2 1 4))
+(constraint (E.Sem max3 2 5 7 7))
+(constraint (E.Sem max3 2 3 2 3))
+(constraint (E.Sem max3 0 0 0 0))
+(constraint (E.Sem max3 2 8 3 8))
+
 
 ;;;
-;;; Instruct the solver to find mid
+;;; Instruct the solver to find max3
 ;;;
 (check-synth)
