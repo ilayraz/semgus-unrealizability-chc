@@ -15,7 +15,15 @@ public class SemgusProblemParser {
     private static final String VAR_PREFIX = "vec_";
     private final Context ctx;
     private final SemgusProblem problem;
+
+    /**
+     * Maps variable name to Z3 variable
+     */
     private LinkedHashMap<String, Expr> variables = null;
+
+    /**
+     * Maps semgus functions to Z3 functions by name (e.g. E.Sem, B.Sem)
+     */
     private Map<String, FuncDecl<BoolSort>> functions = null;
     private Integer numExamples = null;
 
@@ -70,7 +78,6 @@ public class SemgusProblemParser {
                 ), 1, null, null, null, null);
 
         assertions.add(resultAssertion);
-//        assertions.forEach(System.out::println);
 
         return assertions;
     }
@@ -182,6 +189,9 @@ public class SemgusProblemParser {
         return valueMapping;
     }
 
+    /**
+     * Parse a term by subclass
+     */
     private Expr<?> parseTerm(SmtTerm term, int varIndex) {
         return switch(term) {
             case SmtTerm.Application app -> parseApplication(app, varIndex);
@@ -193,10 +203,13 @@ public class SemgusProblemParser {
         };
     }
 
+    /**
+     * Parse a function application
+     */
     private Expr<?> parseApplication(SmtTerm.Application application, int varIndex) {
         Expr<?>[] inputs = application.arguments().stream()
                 .map(arg -> parseTerm(arg.term(), varIndex))
-                .filter(Objects::nonNull)
+                .filter(Objects::nonNull) // These are usually variables we want to ignore
                 .toArray(Expr[]::new);
 
         // Just assume all the types in the parser match
@@ -240,26 +253,26 @@ public class SemgusProblemParser {
             default -> {
                 var function = functions.get(name);
                 if (function != null) {
-//                    if (varIndex == numExamples - 1) {
-                    if (true) {
-                        var argument = application.arguments();
-                        SmtTerm lastTerm = argument.get(argument.size() - 1).term();
+                    // If we get a function, we want to apply its last variable (assumed output) to the vector of outputs
 
-                        // Translate last term (result) to result vector
-                        Expr[] vectorizedInputs = IntStream.range(0, numExamples).boxed()
-                                .map(index -> parseTerm(lastTerm, index))
-                                .toArray(Expr[]::new);
+                    var argument = application.arguments();
+                    SmtTerm lastTerm = argument.get(argument.size() - 1).term();
 
-                        yield ctx.mkApp(function, vectorizedInputs);
-                    } else {
-                        yield null;
-                    }
+                    // Translate last term (result) to result vector
+                    Expr[] vectorizedInputs = IntStream.range(0, numExamples).boxed()
+                            .map(index -> parseTerm(lastTerm, index))
+                            .toArray(Expr[]::new);
+
+                    yield ctx.mkApp(function, vectorizedInputs);
                 }
                 throw new IllegalStateException("Unexpected value: " + application.name().name());
             }
         };
     }
 
+    /**
+     * If we get a quantifier, ignore it, and parse the variables it quantifies with vectorization.
+     */
     private Expr<?> parseQuantifier(SmtTerm.Quantifier quantifier, int varIndex) {
         // Add arguments as new variables
         for (int i = 0; i < numExamples; i++) {
@@ -267,18 +280,16 @@ public class SemgusProblemParser {
                 String name = getVarName(identifier.name(), i);
                 parseSort(identifier.type())
                         .map(sort -> ctx.mkConst(name, sort))
-                        .ifPresent(constant -> {
-//                            if (variables.containsKey(name))
-//                                System.err.println("Variables got two: " + name);
-//                            else
-                                variables.put(name, constant);
-                        });
+                        .ifPresent(constant -> variables.put(name, constant));
             }
         }
 
         return parseTerm(quantifier.child(), varIndex);
     }
 
+    /**
+     * Generates a variable name with the proper prefix and index
+     */
     private String getVarName(String name, int index) {
         return VAR_PREFIX + index + "_" + name;
     }
