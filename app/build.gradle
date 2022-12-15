@@ -11,6 +11,10 @@ plugins {
     id 'application'
 }
 
+java {
+    sourceCompatibility = 17
+}
+
 tasks.withType(JavaExec).configureEach {
     jvmArgs += '--enable-preview'
 }
